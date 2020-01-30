@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="603fb9c5-2195-4e75-8d63-7bf04a371369" basePath="test" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="f4ad95be-312a-47d9-ae47-a17357462d3f" >
+		<db:my-sql-connection host="localhost" port="3306" user="root" password="root" database="muletestdb" />
+	</db:config>
+	<flow name="dbinsertion" doc:id="341a2ef7-d175-47f3-9fa4-a46e20f369b4" >
+		<http:listener doc:name="Listener" doc:id="aa9897fa-f143-4dd4-84dc-120484d1b2c6" config-ref="HTTP_Listener_config" path="/setdata" allowedMethods="POST"/>
+		<logger level="INFO" doc:name="Logger" doc:id="46c16163-1a41-4645-aa2b-a6d25c5f8fac" message="started dbinsertion: #[payload]"/>
+		<db:insert doc:name="Insert" doc:id="d5a2ae44-597e-4a35-94d2-709225c35082" config-ref="Database_Config">
+			<db:sql >insert into student(student_id,first_name,last_name,Course,Grade)values(:student_id,:first_name,:last_name,:Course,:Grade)</db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	"student_id": payload.student_id,
+	"first_name": payload.first_name,
+	"last_name": payload.last_name,
+	"Course": payload.Course,
+	"Grade": payload.Grade
+}]]]></db:input-parameters>
+		</db:insert>
+		<ee:transform doc:name="Transform Message" doc:id="bfe14852-b3de-4a11-b918-439736a64b6b" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/JSON
+---
+{
+	"message": "SUCCESSFUL"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="dbretreival" doc:id="6e25c9e3-7e44-44f2-b1e4-a30694d0a90a" >
+		<http:listener doc:name="Listener" doc:id="0d2cd715-73e2-4af9-b843-5be34ce6c767" config-ref="HTTP_Listener_config" path="/getdata" allowedMethods="GET"/>
+		<logger level="INFO" doc:name="Logger" doc:id="ed2e005b-366e-43ea-bf41-164b69adce85" message="started dbretreival: #[payload]"/>
+		<db:select doc:name="Select" doc:id="6d6fc66c-7e32-4994-b699-59a85786fd30" config-ref="Database_Config">
+			<db:sql >select * from student where last_name= :lname and Course= :cname</db:sql>
+			<db:input-parameters ><![CDATA[#[%dw 2.0
+output application/java
+---
+{
+	lname: attributes.queryParams.lname as String,
+	cname: attributes.queryParams.course as String
+}]]]></db:input-parameters>
+		</db:select>
+		<ee:transform doc:name="Transform Message" doc:id="41aa7691-cafa-4a89-a8c9-86355562631e" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/JSON
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+</mule>
